@@ -9,6 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.items.ItemStackHandler;
+import net.neoforged.neoforge.items.IItemHandler;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.item.component.CustomData;
 import com.robby.vendingmachine.registry.ModBlocks;
@@ -64,6 +65,47 @@ public class VendingMachineBlockEntity extends BlockEntity {
             );
         }
     }
+
+    private final IItemHandler automationItemHandler = new IItemHandler() {
+        @Override
+        public int getSlots() {
+            return stockInventory.getSlots();
+        }
+
+        @Override
+        public ItemStack getStackInSlot(int slot) {
+            return stockInventory.getStackInSlot(slot);
+        }
+
+        @Override
+        public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
+            if (stack.isEmpty()) {
+                return ItemStack.EMPTY;
+            }
+
+            if (!isAllowedAutomationStockItem(stack)) {
+                return stack;
+            }
+
+            return stockInventory.insertItem(slot, stack, simulate);
+        }
+
+        @Override
+        public ItemStack extractItem(int slot, int amount, boolean simulate) {
+            // Automation can fill the vending machine, but cannot pull from stock.
+            return ItemStack.EMPTY;
+        }
+
+        @Override
+        public int getSlotLimit(int slot) {
+            return stockInventory.getSlotLimit(slot);
+        }
+
+        @Override
+        public boolean isItemValid(int slot, ItemStack stack) {
+            return isAllowedAutomationStockItem(stack);
+        }
+    };
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
@@ -216,6 +258,10 @@ public class VendingMachineBlockEntity extends BlockEntity {
 
     public ItemStackHandler getStockInventory() {
         return stockInventory;
+    }
+
+    public IItemHandler getAutomationItemHandler() {
+        return automationItemHandler;
     }
 
     public ItemStackHandler getOutputInventory() {
@@ -488,6 +534,27 @@ public class VendingMachineBlockEntity extends BlockEntity {
         }
 
         player.getInventory().setChanged();
+    }
+
+    private boolean isAllowedAutomationStockItem(ItemStack stack) {
+        if (stack.isEmpty()) {
+            return false;
+        }
+
+        if (isVendingMachineStack(stack)) {
+            return false;
+        }
+
+        for (int saleIndex = 0; saleIndex < SALE_SLOT_COUNT; saleIndex++) {
+            ItemStack configuredSellStack = getConfiguredSellStack(saleIndex);
+
+            if (!configuredSellStack.isEmpty()
+                    && ItemStack.isSameItemSameComponents(stack, configuredSellStack)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public void saveToItemStack(ItemStack stack, HolderLookup.Provider registries) {
