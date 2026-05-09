@@ -1,0 +1,36 @@
+/give @p vendingmachine:vending_machine
+/give @p vendingmachine:admin_tool
+/give @p vendingmachine:vendor_coin
+/gamemode creative
+/give @p vendingmachine:vending_machine
+/give @p vendingmachine:admin_tool
+/give @p vendingmachine:vending_machine
+/give @p vendingmachine:vendor_coin
+/give @p vendingmachine:vendor_coin 64
+/gamemode survival
+/gamemode creative
+/gamemode survival
+/gamemode creative
+/gamemode survival
+/gamemode creative
+/gamemode survival
+/gamemode creative
+/recipe give @p *
+/gamemode survival
+/recipe take @p vendingmachine:vending_machine
+/recipe take @p vendingmachine:admin_tool
+/recipe take @p vendingmachine:vendor_coin
+/give @p minecraft:iron_ingot
+/give @p minecraft:redstone
+/give @p minecraft:gold_ingot
+/gamemode creative
+/gamemode survival
+/gamemode creative
+/recipe take @p vendingmachine:vending_machine
+/give @p vendingmachine:vending_machine
+/help
+/gamerule do
+/gamerule doDaylightCycle false
+/help
+/time set 6000
+/give @p minecraft:iron_ingot 1096
