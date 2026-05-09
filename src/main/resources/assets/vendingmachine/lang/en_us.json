@@ -1,0 +1,9 @@
+{
+  "block.vendingmachine.vending_machine": "Vending Machine",
+  "item.vendingmachine.vending_machine": "Vending Machine",
+  "item.vendingmachine.admin_tool": "Vending Machine Admin Tool",
+  "item.vendingmachine.vendor_coin": "Vendor Coin",
+  "menu.vendingmachine.vending_machine": "Vending Machine",
+  "menu.vendingmachine.vending_machine_admin": "Vending Machine Admin",
+  "menu.vendingmachine.vending_machine_config": "Configure Prices"
+}
