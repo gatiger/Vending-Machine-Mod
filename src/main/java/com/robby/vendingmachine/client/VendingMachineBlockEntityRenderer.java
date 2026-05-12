@@ -187,14 +187,14 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
         int light = LightTexture.FULL_BRIGHT;
         int overlay = OverlayTexture.NO_OVERLAY;
 
-        float x1 = 6.0F / 16.0F;
-        float x2 = 14.0F / 16.0F;
+        float x1 = 2.0F / 16.0F;
+        float x2 = 10.0F / 16.0F;
 
         float y1 = 24.0F / 16.0F;
         float y2 = 27.0F / 16.0F;
 
         // Front side of your current model.
-        float z = 15.95F / 16.0F;
+        float z = 15.55F / 16.0F;
 
         addVertex(vertexConsumer, pose, x1, y2, z, 0.0F, 0.0F, light, overlay);
         addVertex(vertexConsumer, pose, x2, y2, z, 1.0F, 0.0F, light, overlay);
