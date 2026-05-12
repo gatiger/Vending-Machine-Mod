@@ -206,10 +206,10 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
         // Slightly in front of the front/north sign face to prevent z-fighting.
         float z = 0.10F / 16.0F;
 
-        addVertex(vertexConsumer, pose, x1, y2, z, 1.0F, 0.0F, light, overlay);
-        addVertex(vertexConsumer, pose, x2, y2, z, 0.0F, 0.0F, light, overlay);
-        addVertex(vertexConsumer, pose, x2, y1, z, 0.0F, 1.0F, light, overlay);
         addVertex(vertexConsumer, pose, x1, y1, z, 1.0F, 1.0F, light, overlay);
+        addVertex(vertexConsumer, pose, x2, y1, z, 0.0F, 1.0F, light, overlay);
+        addVertex(vertexConsumer, pose, x2, y2, z, 0.0F, 0.0F, light, overlay);
+        addVertex(vertexConsumer, pose, x1, y2, z, 1.0F, 0.0F, light, overlay);
     }
 
     private void addVertex(
@@ -228,6 +228,6 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
                 .setUv(u, v)
                 .setOverlay(overlay)
                 .setLight(light)
-                .setNormal(0.0F, 0.0F, -1.0F);
+                .setNormal(0.0F, 0.0F, 1.0F);
     }
 }
