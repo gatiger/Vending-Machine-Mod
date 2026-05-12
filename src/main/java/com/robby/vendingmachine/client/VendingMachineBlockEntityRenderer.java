@@ -204,7 +204,7 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
         float y2 = 27.0F / 16.0F;
 
         // Slightly in front of the front/north sign face to prevent z-fighting.
-        float z = 0.45F / 16.0F;
+        float z = 0.10F / 16.0F;
 
         addVertex(vertexConsumer, pose, x1, y2, z, 1.0F, 0.0F, light, overlay);
         addVertex(vertexConsumer, pose, x2, y2, z, 0.0F, 0.0F, light, overlay);
