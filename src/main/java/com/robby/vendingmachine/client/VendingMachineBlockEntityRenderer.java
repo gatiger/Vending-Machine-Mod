@@ -187,29 +187,19 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
         int light = LightTexture.FULL_BRIGHT;
         int overlay = OverlayTexture.NO_OVERLAY;
 
-        /*
-         * Sign panel from Blockbench:
-         * size 8 x 3 pixels
-         * position around x=6, y=24, z=0.5 in the full 2-block model.
-         *
-         * Converted to block coordinates:
-         * x: 6/16 to 14/16
-         * y: 24/16 to 27/16
-         * z: slightly in front of the north/front face.
-         */
         float x1 = 6.0F / 16.0F;
         float x2 = 14.0F / 16.0F;
 
         float y1 = 24.0F / 16.0F;
         float y2 = 27.0F / 16.0F;
 
-        // Slightly in front of the front/north sign face to prevent z-fighting.
-        float z = 0.10F / 16.0F;
+        // Front side of your current model.
+        float z = 15.95F / 16.0F;
 
-        addVertex(vertexConsumer, pose, x1, y1, z, 1.0F, 1.0F, light, overlay);
-        addVertex(vertexConsumer, pose, x2, y1, z, 0.0F, 1.0F, light, overlay);
-        addVertex(vertexConsumer, pose, x2, y2, z, 0.0F, 0.0F, light, overlay);
-        addVertex(vertexConsumer, pose, x1, y2, z, 1.0F, 0.0F, light, overlay);
+        addVertex(vertexConsumer, pose, x1, y2, z, 0.0F, 0.0F, light, overlay);
+        addVertex(vertexConsumer, pose, x2, y2, z, 1.0F, 0.0F, light, overlay);
+        addVertex(vertexConsumer, pose, x2, y1, z, 1.0F, 1.0F, light, overlay);
+        addVertex(vertexConsumer, pose, x1, y1, z, 0.0F, 1.0F, light, overlay);
     }
 
     private void addVertex(
