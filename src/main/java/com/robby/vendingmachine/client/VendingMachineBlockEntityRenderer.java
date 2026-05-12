@@ -118,7 +118,7 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
                 11.55F / 16.0F  // bottom shelf items
         };
 
-        float z = 1.15F / 16.0F;
+        float z = 14.85F / 16.0F;
 
         float scale = 0.16F;
 
