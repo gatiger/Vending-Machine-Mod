@@ -107,9 +107,9 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
         * Items are rendered slightly behind the glass/front face.
         */
         float[] xPositions = {
-                7.4F / 16.0F,
-                10.0F / 16.0F,
-                12.6F / 16.0F
+                3.4F / 16.0F,
+                6.0F / 16.0F,
+                8.6F / 16.0F
         };
 
         float[] yPositions = {
@@ -118,7 +118,7 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
                 11.55F / 16.0F  // bottom shelf items
         };
 
-        float z = 1.15F / 16.0F;
+        float z = 14.85F / 16.0F;
 
         float scale = 0.16F;
 
@@ -132,14 +132,14 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
             int row = saleIndex / 3;
 
             // Flip columns so slot 1 appears on the left, not the right.
-            int col = 2 - (saleIndex % 3);
+            int col = saleIndex % 3;
 
             poseStack.pushPose();
 
             poseStack.translate(xPositions[col], yPositions[row], z);
 
-            // Face the front of the item toward the vending machine glass.
-            poseStack.mulPose(Axis.YP.rotationDegrees(0.0F));
+            // Keep the item facing the glass, then flip the flat item render so it is not mirrored.
+            poseStack.mulPose(Axis.YP.rotationDegrees(180.0F));
 
             // Small product-sized render.
             poseStack.scale(scale, scale, scale);
@@ -168,8 +168,14 @@ public class VendingMachineBlockEntityRenderer implements BlockEntityRenderer<Ve
     }
 
     private void rotateToBlockFacing(BlockState state, PoseStack poseStack) {
+        /*
+        * The rendered sign/items are positioned on the model's positive-Z side.
+        * Positive-Z is the model's default SOUTH-facing side, so we rotate from
+        * SOUTH to whatever direction the vending machine is facing.
+        */
         float rotation = switch (state.getValue(VendingMachineBlock.FACING)) {
-            case SOUTH -> 180.0F;
+            case NORTH -> 180.0F;
+            case SOUTH -> 0.0F;
             case WEST -> 270.0F;
             case EAST -> 90.0F;
             default -> 0.0F;
