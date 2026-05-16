@@ -80,7 +80,7 @@ public class VendingMachineMenu extends AbstractContainerMenu {
     }
 
     private void addDisplayConfigSlots(ItemStackHandler configInventory) {
-        int startX = 8;
+        int startX = 14;
         int startY = 34;
 
         for (int saleIndex = 0; saleIndex < SALE_SLOT_COUNT; saleIndex++) {
