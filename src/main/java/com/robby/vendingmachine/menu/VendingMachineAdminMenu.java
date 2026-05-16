@@ -5,12 +5,11 @@ import com.robby.vendingmachine.registry.ModBlocks;
 import com.robby.vendingmachine.registry.ModMenus;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.RegistryFriendlyByteBuf;
-import net.minecraft.network.chat.Component;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.SimpleMenuProvider;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.ContainerLevelAccess;
 import net.minecraft.world.inventory.DataSlot;
 import net.minecraft.world.inventory.Slot;
@@ -25,6 +24,13 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
     public static final int STOCK_SLOT_COUNT = 9;
     public static final int OUTPUT_SLOT_COUNT = 9;
     public static final int CASHBOX_SLOT_COUNT = 9;
+    public static final int SALE_SLOT_COUNT = VendingMachineBlockEntity.SALE_SLOT_COUNT;
+    public static final int GHOST_SLOT_COUNT = VendingMachineBlockEntity.CONFIG_SLOTS;
+
+    public static final int SIGN_PREVIOUS_BUTTON_ID = 1;
+    public static final int SIGN_NEXT_BUTTON_ID = 2;
+    public static final int TAB_BUTTON_OFFSET = 900;
+    public static final int SALES_BUTTON_OFFSET = 1000;
 
     public enum AdminTab {
         STOCK,
@@ -34,12 +40,14 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
     }
 
     private static final int STOCK_TAB_INDEX = AdminTab.STOCK.ordinal();
+    private static final int SALES_TAB_INDEX = AdminTab.SALES.ordinal();
     private static final int CASHBOX_TAB_INDEX = AdminTab.CASHBOX.ordinal();
 
     private static final int STOCK_START = 0;
     private static final int OUTPUT_START = STOCK_START + STOCK_SLOT_COUNT;
     private static final int CASHBOX_START = OUTPUT_START + OUTPUT_SLOT_COUNT;
-    private static final int PLAYER_INV_START = CASHBOX_START + CASHBOX_SLOT_COUNT;
+    private static final int GHOST_START = CASHBOX_START + CASHBOX_SLOT_COUNT;
+    private static final int PLAYER_INV_START = GHOST_START + GHOST_SLOT_COUNT;
     private static final int PLAYER_INV_END = PLAYER_INV_START + 27;
     private static final int HOTBAR_START = PLAYER_INV_END;
     private static final int HOTBAR_END = HOTBAR_START + 9;
@@ -63,6 +71,7 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
         addStockSlots(blockEntity.getStockInventory());
         addOutputTraySlots(blockEntity.getOutputInventory());
         addCashboxSlots(blockEntity.getCashboxInventory());
+        addGhostSlots(blockEntity.getConfigInventory());
         addPlayerInventory(playerInventory);
         addPlayerHotbar(playerInventory);
 
@@ -104,7 +113,9 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
     }
 
     private boolean shouldPlayerInventoryBeActive() {
-        return isTabActive(STOCK_TAB_INDEX) || isTabActive(CASHBOX_TAB_INDEX);
+        return isTabActive(STOCK_TAB_INDEX)
+                || isTabActive(SALES_TAB_INDEX)
+                || isTabActive(CASHBOX_TAB_INDEX);
     }
 
     private static VendingMachineBlockEntity getBlockEntity(Inventory playerInventory, BlockPos pos) {
@@ -165,9 +176,36 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
         }
     }
 
+    private void addGhostSlots(ItemStackHandler configInventory) {
+        int startX = 8;
+        int startY = 30;
+
+        for (int saleIndex = 0; saleIndex < SALE_SLOT_COUNT; saleIndex++) {
+            int y = startY + saleIndex * 26;
+
+            this.addSlot(new GhostSlot(
+                    configInventory,
+                    VendingMachineBlockEntity.getSellConfigSlot(saleIndex),
+                    startX,
+                    y,
+                    () -> this.activeTabIndex,
+                    SALES_TAB_INDEX
+            ));
+
+            this.addSlot(new GhostSlot(
+                    configInventory,
+                    VendingMachineBlockEntity.getPriceConfigSlot(saleIndex),
+                    startX + 84,
+                    y,
+                    () -> this.activeTabIndex,
+                    SALES_TAB_INDEX
+            ));
+        }
+    }
+
     private void addPlayerInventory(Inventory playerInventory) {
         int startX = 8;
-        int startY = 240;
+        int startY = 290;
 
         for (int row = 0; row < 3; row++) {
             for (int column = 0; column < 9; column++) {
@@ -184,7 +222,7 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
 
     private void addPlayerHotbar(Inventory playerInventory) {
         int startX = 8;
-        int startY = 298;
+        int startY = 348;
 
         for (int column = 0; column < 9; column++) {
             this.addSlot(new TabbedPlayerSlot(
@@ -198,31 +236,120 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public boolean clickMenuButton(Player player, int buttonId) {
-        if (buttonId == 0 && player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.openMenu(
-                    new SimpleMenuProvider(
-                            (containerId, playerInventory, openedPlayer) ->
-                                    new VendingMachineConfigMenu(containerId, playerInventory, blockEntity),
-                            Component.translatable("menu.vendingmachine.vending_machine_config")
-                    ),
-                    buffer -> buffer.writeBlockPos(blockEntity.getBlockPos())
-            );
+    public void clicked(int slotId, int button, ClickType clickType, Player player) {
+        if (slotId >= GHOST_START && slotId < PLAYER_INV_START) {
+            Slot slot = this.slots.get(slotId);
 
+            if (slot instanceof GhostSlot ghostSlot && ghostSlot.isActive()) {
+                handleGhostSlotClick(ghostSlot.getSlotIndex());
+            }
+
+            return;
+        }
+
+        super.clicked(slotId, button, clickType, player);
+    }
+
+    private void handleGhostSlotClick(int configSlot) {
+        ItemStack carried = this.getCarried();
+        ItemStackHandler configInventory = blockEntity.getConfigInventory();
+
+        if (carried.isEmpty()) {
+            configInventory.setStackInSlot(configSlot, ItemStack.EMPTY);
+            return;
+        }
+
+        if (carried.is(ModBlocks.VENDING_MACHINE.get().asItem())) {
+            return;
+        }
+
+        ItemStack existing = configInventory.getStackInSlot(configSlot);
+        int quantity = existing.isEmpty() ? 1 : Math.max(1, existing.getCount());
+
+        ItemStack template = carried.copy();
+        template.setCount(quantity);
+
+        configInventory.setStackInSlot(configSlot, template);
+    }
+
+    @Override
+    public boolean clickMenuButton(Player player, int buttonId) {
+        if (buttonId >= TAB_BUTTON_OFFSET && buttonId < TAB_BUTTON_OFFSET + AdminTab.values().length) {
+            setActiveTabIndex(buttonId - TAB_BUTTON_OFFSET);
             return true;
         }
 
-        if (buttonId == 1) {
+        if (buttonId == SIGN_PREVIOUS_BUTTON_ID) {
             blockEntity.cycleSignPreset(-1);
             return true;
         }
 
-        if (buttonId == 2) {
+        if (buttonId == SIGN_NEXT_BUTTON_ID) {
             blockEntity.cycleSignPreset(1);
             return true;
         }
 
+        if (buttonId >= SALES_BUTTON_OFFSET) {
+            return handleSalesQuantityButton(buttonId - SALES_BUTTON_OFFSET);
+        }
+
         return false;
+    }
+
+    private boolean handleSalesQuantityButton(int localButtonId) {
+        int saleIndex = localButtonId / 12;
+        int buttonWithinSale = localButtonId % 12;
+
+        if (saleIndex < 0 || saleIndex >= SALE_SLOT_COUNT) {
+            return false;
+        }
+
+        boolean priceSlot = buttonWithinSale >= 6;
+        int action = buttonWithinSale % 6;
+
+        int configSlot = priceSlot
+                ? VendingMachineBlockEntity.getPriceConfigSlot(saleIndex)
+                : VendingMachineBlockEntity.getSellConfigSlot(saleIndex);
+
+        int delta = switch (action) {
+            case 0 -> 1;
+            case 1 -> -1;
+            case 2 -> 16;
+            case 3 -> -16;
+            case 4 -> 64;
+            case 5 -> -64;
+            default -> 0;
+        };
+
+        if (delta == 0) {
+            return false;
+        }
+
+        return adjustGhostQuantity(configSlot, delta);
+    }
+
+    private boolean adjustGhostQuantity(int configSlot, int delta) {
+        ItemStackHandler configInventory = blockEntity.getConfigInventory();
+        ItemStack current = configInventory.getStackInSlot(configSlot);
+
+        if (current.isEmpty()) {
+            return false;
+        }
+
+        int currentCount = current.getCount();
+        int newCount;
+
+        if (currentCount == 1 && delta > 1) {
+            newCount = delta;
+        } else {
+            newCount = currentCount + delta;
+        }
+
+        ItemStack updated = current.copy();
+        updated.setCount(Mth.clamp(newCount, 1, 999));
+
+        configInventory.setStackInSlot(configSlot, updated);
+        return true;
     }
 
     @Override
@@ -252,7 +379,19 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
                     return ItemStack.EMPTY;
                 }
             } else if (isTabActive(CASHBOX_TAB_INDEX)) {
-                if (!this.moveItemStackTo(rawStack, CASHBOX_START, PLAYER_INV_START, false)) {
+                if (!this.moveItemStackTo(rawStack, CASHBOX_START, GHOST_START, false)) {
+                    return ItemStack.EMPTY;
+                }
+            } else if (isTabActive(SALES_TAB_INDEX)) {
+                if (quickMovedSlotIndex >= PLAYER_INV_START && quickMovedSlotIndex < PLAYER_INV_END) {
+                    if (!this.moveItemStackTo(rawStack, HOTBAR_START, HOTBAR_END, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else if (quickMovedSlotIndex >= HOTBAR_START && quickMovedSlotIndex < HOTBAR_END) {
+                    if (!this.moveItemStackTo(rawStack, PLAYER_INV_START, PLAYER_INV_END, false)) {
+                        return ItemStack.EMPTY;
+                    }
+                } else {
                     return ItemStack.EMPTY;
                 }
             } else {
@@ -283,7 +422,7 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
         }
 
         if (isTabActive(CASHBOX_TAB_INDEX)) {
-            return index >= CASHBOX_START && index < PLAYER_INV_START;
+            return index >= CASHBOX_START && index < GHOST_START;
         }
 
         return false;
@@ -340,6 +479,29 @@ public class VendingMachineAdminMenu extends AbstractContainerMenu {
         @Override
         public int getMaxStackSize(ItemStack stack) {
             return this.getItemHandler().getSlotLimit(this.getSlotIndex());
+        }
+    }
+
+    private static class GhostSlot extends TabbedSlotItemHandler {
+        public GhostSlot(
+                ItemStackHandler itemHandler,
+                int index,
+                int xPosition,
+                int yPosition,
+                IntSupplier activeTabSupplier,
+                int visibleTabIndex
+        ) {
+            super(itemHandler, index, xPosition, yPosition, activeTabSupplier, visibleTabIndex);
+        }
+
+        @Override
+        public boolean mayPlace(ItemStack stack) {
+            return false;
+        }
+
+        @Override
+        public boolean mayPickup(Player player) {
+            return false;
         }
     }
 

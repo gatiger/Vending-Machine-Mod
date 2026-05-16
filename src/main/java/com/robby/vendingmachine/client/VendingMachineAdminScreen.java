@@ -3,19 +3,17 @@ package com.robby.vendingmachine.client;
 import com.robby.vendingmachine.menu.VendingMachineAdminMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMachineAdminMenu> {
     private static final int TAB_WIDTH = 28;
     private static final int TAB_HEIGHT = 24;
-
-    private AdminTab activeTab = AdminTab.STOCK;
-
-    private Button salesButton;
-    private Button signPreviousButton;
-    private Button signNextButton;
 
     private static final String[] SIGN_NAMES = {
             "Ingots",
@@ -26,6 +24,12 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
             "Magic",
             "General"
     };
+
+    private AdminTab activeTab = AdminTab.STOCK;
+
+    private Button signPreviousButton;
+    private Button signNextButton;
+    private final List<Button> salesQuantityButtons = new ArrayList<>();
 
     private enum AdminTab {
         STOCK("Stock", "Stock"),
@@ -46,13 +50,13 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
         super(menu, playerInventory, title);
 
         this.imageWidth = 176;
-        this.imageHeight = 336;
+        this.imageHeight = 384;
 
         this.titleLabelX = 8;
         this.titleLabelY = 6;
 
         this.inventoryLabelX = 8;
-        this.inventoryLabelY = 228;
+        this.inventoryLabelY = 278;
     }
 
     @Override
@@ -61,7 +65,14 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
 
         this.menu.setActiveTabIndex(this.activeTab.ordinal());
 
+        this.signPreviousButton = null;
+        this.signNextButton = null;
+        this.salesQuantityButtons.clear();
+
         addTabButtons();
+        addDisplayButtons();
+        addSalesQuantityButtons();
+
         rebuildTabButtons();
     }
 
@@ -80,6 +91,14 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
                                     button -> {
                                         this.activeTab = tab;
                                         this.menu.setActiveTabIndex(tab.ordinal());
+
+                                        if (this.minecraft != null && this.minecraft.gameMode != null) {
+                                            this.minecraft.gameMode.handleInventoryButtonClick(
+                                                    this.menu.containerId,
+                                                    VendingMachineAdminMenu.TAB_BUTTON_OFFSET + tab.ordinal()
+                                            );
+                                        }
+
                                         rebuildTabButtons();
                                     }
                             )
@@ -89,51 +108,95 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
         }
     }
 
+    private void addDisplayButtons() {
+        this.signPreviousButton = Button.builder(
+                        Component.literal("<"),
+                        button -> sendMenuButtonClick(VendingMachineAdminMenu.SIGN_PREVIOUS_BUTTON_ID)
+                )
+                .bounds(this.leftPos + 24, this.topPos + 72, 24, 20)
+                .build();
+
+        this.signNextButton = Button.builder(
+                        Component.literal(">"),
+                        button -> sendMenuButtonClick(VendingMachineAdminMenu.SIGN_NEXT_BUTTON_ID)
+                )
+                .bounds(this.leftPos + 128, this.topPos + 72, 24, 20)
+                .build();
+
+        this.addRenderableWidget(this.signPreviousButton);
+        this.addRenderableWidget(this.signNextButton);
+    }
+
+    private void addSalesQuantityButtons() {
+        int startY = this.topPos + 30;
+
+        for (int saleIndex = 0; saleIndex < VendingMachineAdminMenu.SALE_SLOT_COUNT; saleIndex++) {
+            int y = startY + saleIndex * 26;
+
+            addQuantityButtons(saleIndex, false, this.leftPos + 32, y);
+            addQuantityButtons(saleIndex, true, this.leftPos + 116, y);
+        }
+    }
+
+    private void addQuantityButtons(int saleIndex, boolean priceSlot, int x, int y) {
+        Button plusButton = Button.builder(
+                        Component.literal("+"),
+                        button -> sendMenuButtonClick(getSalesButtonId(saleIndex, priceSlot, true))
+                )
+                .bounds(x, y, 20, 12)
+                .build();
+
+        Button minusButton = Button.builder(
+                        Component.literal("-"),
+                        button -> sendMenuButtonClick(getSalesButtonId(saleIndex, priceSlot, false))
+                )
+                .bounds(x, y + 13, 20, 12)
+                .build();
+
+        this.salesQuantityButtons.add(plusButton);
+        this.salesQuantityButtons.add(minusButton);
+
+        this.addRenderableWidget(plusButton);
+        this.addRenderableWidget(minusButton);
+    }
+
+    private int getSalesButtonId(int saleIndex, boolean priceSlot, boolean plus) {
+        int action;
+
+        if (Screen.hasControlDown() && Screen.hasShiftDown()) {
+            action = plus ? 4 : 5;
+        } else if (Screen.hasShiftDown()) {
+            action = plus ? 2 : 3;
+        } else {
+            action = plus ? 0 : 1;
+        }
+
+        int priceOffset = priceSlot ? 6 : 0;
+        return VendingMachineAdminMenu.SALES_BUTTON_OFFSET + saleIndex * 12 + priceOffset + action;
+    }
+
+    private void sendMenuButtonClick(int buttonId) {
+        if (this.minecraft == null || this.minecraft.player == null || this.minecraft.gameMode == null) {
+            return;
+        }
+
+        this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, buttonId);
+    }
+
     private void rebuildTabButtons() {
-        if (this.salesButton == null) {
-            this.salesButton = Button.builder(
-                            Component.literal("Configure Sales"),
-                            button -> this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, 0)
-                    )
-                    .bounds(this.leftPos + 18, this.topPos + 72, 140, 20)
-                    .build();
-
-            this.addRenderableWidget(this.salesButton);
-        }
-
-        if (this.signPreviousButton == null) {
-            this.signPreviousButton = Button.builder(
-                            Component.literal("<"),
-                            button -> this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, 1)
-                    )
-                    .bounds(this.leftPos + 24, this.topPos + 72, 24, 20)
-                    .build();
-
-            this.addRenderableWidget(this.signPreviousButton);
-        }
-
-        if (this.signNextButton == null) {
-            this.signNextButton = Button.builder(
-                            Component.literal(">"),
-                            button -> this.minecraft.gameMode.handleInventoryButtonClick(this.menu.containerId, 2)
-                    )
-                    .bounds(this.leftPos + 128, this.topPos + 72, 24, 20)
-                    .build();
-
-            this.addRenderableWidget(this.signNextButton);
-        }
-
-        boolean salesVisible = this.activeTab == AdminTab.SALES;
         boolean displayVisible = this.activeTab == AdminTab.DISPLAY;
-
-        this.salesButton.visible = salesVisible;
-        this.salesButton.active = salesVisible;
+        boolean salesVisible = this.activeTab == AdminTab.SALES;
 
         this.signPreviousButton.visible = displayVisible;
         this.signPreviousButton.active = displayVisible;
 
         this.signNextButton.visible = displayVisible;
         this.signNextButton.active = displayVisible;
+
+        for (Button button : this.salesQuantityButtons) {
+            button.visible = salesVisible;
+            button.active = salesVisible;
+        }
     }
 
     @Override
@@ -187,24 +250,27 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
     private void drawStockTab(GuiGraphics guiGraphics, int x, int y) {
         guiGraphics.fill(x + 8, y + 28, x + this.imageWidth - 8, y + 104, 0xFF1F2A1F);
         guiGraphics.fill(x + 8, y + 112, x + this.imageWidth - 8, y + 160, 0xFF2A1F1F);
-        guiGraphics.fill(x + 4, y + 236, x + this.imageWidth - 4, y + this.imageHeight - 4, 0xFF252525);
+        guiGraphics.fill(x + 4, y + 286, x + this.imageWidth - 4, y + this.imageHeight - 4, 0xFF252525);
 
         drawSlotRow(guiGraphics, x + 8, y + 78, 9);
         drawSlotRow(guiGraphics, x + 8, y + 136, 9);
-        drawPlayerInventorySlots(guiGraphics, x + 8, y + 240);
+        drawPlayerInventorySlots(guiGraphics, x + 8, y + 290);
     }
 
     private void drawSalesTab(GuiGraphics guiGraphics, int x, int y) {
-        guiGraphics.fill(x + 8, y + 28, x + this.imageWidth - 8, y + 130, 0xFF1F2730);
-        guiGraphics.fill(x + 16, y + 52, x + this.imageWidth - 16, y + 104, 0xFF18202A);
+        guiGraphics.fill(x + 4, y + 24, x + this.imageWidth - 4, y + 282, 0xFF1F2730);
+        guiGraphics.fill(x + 4, y + 286, x + this.imageWidth - 4, y + this.imageHeight - 4, 0xFF252525);
+
+        drawConfigSlots(guiGraphics, x + 8, y + 30);
+        drawPlayerInventorySlots(guiGraphics, x + 8, y + 290);
     }
 
     private void drawCashboxTab(GuiGraphics guiGraphics, int x, int y) {
         guiGraphics.fill(x + 8, y + 28, x + this.imageWidth - 8, y + 104, 0xFF2A281F);
-        guiGraphics.fill(x + 4, y + 236, x + this.imageWidth - 4, y + this.imageHeight - 4, 0xFF252525);
+        guiGraphics.fill(x + 4, y + 286, x + this.imageWidth - 4, y + this.imageHeight - 4, 0xFF252525);
 
         drawSlotRow(guiGraphics, x + 8, y + 78, 9);
-        drawPlayerInventorySlots(guiGraphics, x + 8, y + 240);
+        drawPlayerInventorySlots(guiGraphics, x + 8, y + 290);
     }
 
     private void drawDisplayTab(GuiGraphics guiGraphics, int x, int y) {
@@ -229,18 +295,31 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
         guiGraphics.drawString(this.font, Component.literal("Items available for sale"), 12, 42, 0xA0FFA0, false);
 
         guiGraphics.drawString(this.font, Component.literal("Output Tray"), 12, 112, 0xFFFFFF, false);
-        guiGraphics.drawString(this.font, Component.literal("Purchased items"), 12, 122, 0xFFB0B0, false);
-
-        guiGraphics.drawString(this.font, Component.literal("Cashbox"), 12, 168, 0xFFFFFF, false);
-        guiGraphics.drawString(this.font, Component.literal("Payments collected"), 12, 178, 0xFFE0A0, false);
+        guiGraphics.drawString(this.font, Component.literal("Purchased items waiting for pickup"), 12, 122, 0xFFB0B0, false);
 
         guiGraphics.drawString(this.font, this.playerInventoryTitle, this.inventoryLabelX, this.inventoryLabelY, 0xFFFFFF, false);
     }
 
     private void renderSalesLabels(GuiGraphics guiGraphics) {
-        guiGraphics.drawString(this.font, Component.literal("Configure Sales"), 12, 32, 0xFFFFFF, false);
-        guiGraphics.drawString(this.font, Component.literal("Set items, prices, and quantities."), 12, 44, 0xA0C8FF, false);
-        guiGraphics.drawString(this.font, Component.literal("This tab will become the full sales editor."), 20, 110, 0xAAAAAA, false);
+        guiGraphics.drawString(this.font, this.title, this.titleLabelX, this.titleLabelY, 0xFFFFFF, false);
+
+        guiGraphics.drawString(this.font, Component.literal("Sell"), 8, 18, 0xA0C8FF, false);
+        guiGraphics.drawString(this.font, Component.literal("Price"), 92, 18, 0xA0C8FF, false);
+
+        for (int saleIndex = 0; saleIndex < VendingMachineAdminMenu.SALE_SLOT_COUNT; saleIndex++) {
+            int y = 34 + saleIndex * 26;
+
+            guiGraphics.drawString(
+                    this.font,
+                    Component.literal(String.valueOf(saleIndex + 1)),
+                    158,
+                    y,
+                    0xFFFFFF,
+                    false
+            );
+        }
+
+        guiGraphics.drawString(this.font, this.playerInventoryTitle, this.inventoryLabelX, this.inventoryLabelY, 0xFFFFFF, false);
     }
 
     private void renderCashboxLabels(GuiGraphics guiGraphics) {
@@ -256,14 +335,7 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
         String signName = getSignName(this.menu.getSignPreset());
         int signTextWidth = this.font.width(signName);
 
-        guiGraphics.drawString(
-                this.font,
-                Component.literal("Sign Preset"),
-                20,
-                60,
-                0xFFE0A0,
-                false
-        );
+        guiGraphics.drawString(this.font, Component.literal("Sign Preset"), 20, 60, 0xFFE0A0, false);
 
         guiGraphics.drawString(
                 this.font,
@@ -290,6 +362,15 @@ public class VendingMachineAdminScreen extends AbstractContainerScreen<VendingMa
         }
 
         return SIGN_NAMES[index];
+    }
+
+    private void drawConfigSlots(GuiGraphics guiGraphics, int x, int y) {
+        for (int saleIndex = 0; saleIndex < VendingMachineAdminMenu.SALE_SLOT_COUNT; saleIndex++) {
+            int rowY = y + saleIndex * 26;
+
+            drawSlot(guiGraphics, x, rowY);
+            drawSlot(guiGraphics, x + 84, rowY);
+        }
     }
 
     private void drawSlotRow(GuiGraphics guiGraphics, int x, int y, int slots) {
